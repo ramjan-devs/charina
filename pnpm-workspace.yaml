@@ -1,0 +1,6 @@
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - baseline-browser-mapping@2.11.7
+  - lucide-react@1.28.0
