@@ -1,0 +1,192 @@
+/* eslint-disable jsx-a11y/role-has-required-aria-props */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-unused-vars */
+'use client';
+
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Check, ChevronDown, X } from 'lucide-react';
+import * as React from 'react';
+import { Control, Controller, FieldValues, Path } from 'react-hook-form';
+
+interface Option {
+  value: string;
+  label: string;
+}
+
+interface SearchableSelectProps<T extends FieldValues> {
+  label: string;
+  name: Path<T>;
+  options: Option[];
+  control: Control<T>;
+  error?: any;
+  required?: boolean;
+  placeholder?: string;
+  disabled?: boolean;
+  isSingle?: boolean;
+  onSearchChange?: (value: string) => void;
+}
+
+const SearchableSelect = <T extends FieldValues>({
+  label,
+  name,
+  options,
+  control,
+  error,
+  required = false,
+  placeholder = 'Select members...',
+  disabled = false,
+  isSingle = false,
+  onSearchChange,
+}: SearchableSelectProps<T>) => {
+  const [open, setOpen] = React.useState(false);
+
+  const errorMessage = typeof error === 'object' ? error?.message : error;
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-semibold">
+        {label} {required && <span className="text-error">*</span>}
+      </Label>
+
+      <Controller
+        name={name}
+        control={control}
+        render={({ field }) => {
+          const selectedValues: string[] = Array.isArray(field.value)
+            ? (field.value as string[])
+            : field.value
+              ? [String(field.value)]
+              : [];
+
+          const handleRemove = (valToRemove: string, e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isSingle) {
+              field.onChange('');
+            } else {
+              const newValues = selectedValues.filter((v) => v !== valToRemove);
+              field.onChange(newValues);
+            }
+          };
+
+          const handleSelect = (value: string) => {
+            if (isSingle) {
+              field.onChange(value);
+              setOpen(false);
+            } else {
+              const isSelected = selectedValues.includes(value);
+              const newValues = isSelected
+                ? selectedValues.filter((v) => v !== value)
+                : [...selectedValues, value];
+              field.onChange(newValues);
+            }
+          };
+
+          return (
+            <Popover open={disabled ? false : open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <div
+                  role="combobox"
+                  aria-expanded={open}
+                  className={cn(
+                    'text-foreground flex min-h-12 w-full cursor-pointer items-center justify-between rounded-sm border p-3 text-sm transition-all outline-none',
+                    open && 'border-primary bg-white ring-2 ring-emerald-100',
+                    {
+                      'cursor-not-allowed bg-[#F9FAFB] opacity-60': disabled,
+                      'bg-[#F9FAFB]': !disabled && !open,
+                      'border-error/50 focus-within:border-error ring-error/10': error,
+                      'border-slate-200': !error && !open,
+                    },
+                  )}
+                >
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedValues.length > 0 ? (
+                      selectedValues.map((val) => {
+                        const option = options.find((o) => o.value === val);
+                        return (
+                          <span
+                            key={val}
+                            className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700"
+                          >
+                            {option ? option.label : 'Unknown'}
+                            {!disabled && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => handleRemove(val, e)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    handleRemove(val, e as any);
+                                  }
+                                }}
+                                className="hover:text-error ml-1 rounded-full p-0.5 outline-none hover:bg-slate-200"
+                              >
+                                <X className="h-3 w-3" />
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="text-slate-400">{placeholder}</span>
+                    )}
+                  </div>
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                </div>
+              </PopoverTrigger>
+              {!disabled && (
+                <PopoverContent
+                  className="w-(--radix-popover-trigger-width) rounded-sm border border-slate-200 bg-white p-0 shadow-md"
+                  align="start"
+                >
+                  <Command shouldFilter={!onSearchChange}>
+                    <CommandInput
+                      placeholder={`Search ${label}...`}
+                      className="h-10 border-none focus:ring-0"
+                      onValueChange={(value) => {
+                        if (onSearchChange) onSearchChange(value);
+                      }}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No {label.toLowerCase()} found.</CommandEmpty>
+                      <CommandGroup>
+                        {options.map((option) => (
+                          <CommandItem
+                            key={option.value}
+                            onSelect={() => handleSelect(option.value)}
+                            className="focus:text-foreground cursor-pointer transition-colors focus:bg-emerald-50 data-[selected=true]:bg-emerald-50/50"
+                          >
+                            {option.label}
+                            <Check
+                              className={cn(
+                                'text-foreground ml-auto h-4 w-4',
+                                selectedValues.includes(option.value) ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              )}
+            </Popover>
+          );
+        }}
+      />
+      {errorMessage && <p className="text-error mt-1 text-xs font-medium">{errorMessage}</p>}
+    </div>
+  );
+};
+
+export default SearchableSelect;
